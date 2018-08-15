@@ -47,8 +47,6 @@ var VerificationIdentity = []skipchain.VerifierID{skipchain.VerifyBase, VerifyId
 // VerifyIdentity makes sure that each new block is signed by a threshold of devices.
 var VerifyIdentity = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Identity"))
 
-var storageKey = []byte("storage")
-
 func init() {
 	identityService, _ = onet.RegisterNewService(ServiceName, newIdentityService)
 	network.RegisterMessage(&Storage{})
@@ -74,8 +72,6 @@ type Service struct {
 // Storage holds the map to the storages so it can be marshaled.
 type Storage struct {
 	Identities map[string]*IDBlock
-	// OldSkipchainKey is a placeholder for protobuf being able to read old config-files
-	OldSkipchainKey kyber.Scalar
 	// The key that is stored in the skipchain service to authenticate
 	// new blocks.
 	SkipchainKeyPair *key.Pair
@@ -747,6 +743,10 @@ func (s *Service) save() {
 	if err != nil {
 		log.Error("Couldn't save file:", err)
 	}
+	err = s.SaveVersion(dbVersion)
+	if err != nil {
+		log.Error("Couldn't save version:", err)
+	}
 }
 
 func (s *Service) clearIdentities() {
@@ -756,16 +756,10 @@ func (s *Service) clearIdentities() {
 // Tries to load the configuration and updates if a configuration
 // is found, else it returns an error.
 func (s *Service) tryLoad() error {
-	msg, err := s.Load(storageKey)
+	var err error
+	s.Storage, err = loadVersion(s)
 	if err != nil {
 		return err
-	}
-	if msg != nil {
-		var ok bool
-		s.Storage, ok = msg.(*Storage)
-		if !ok {
-			return errors.New("Data of wrong type")
-		}
 	}
 	if s.Storage == nil {
 		s.Storage = &Storage{}

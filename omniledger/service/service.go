@@ -98,7 +98,7 @@ type Service struct {
 
 // storageID reflects the data we're storing - we could store more
 // than one structure.
-const storageID = "OmniLedger"
+var storageID = []byte("OmniLedger")
 
 // defaultInterval is used if the BlockInterval field in the genesis
 // transaction is not set.
@@ -1087,7 +1087,7 @@ func (s *Service) registerContract(contractID string, c OmniLedgerContract) erro
 func (s *Service) tryLoad() error {
 	s.SetPropagationTimeout(120 * time.Second)
 
-	msg, err := s.Load([]byte(storageID))
+	msg, err := s.Load(storageID)
 	if err != nil {
 		return err
 	}
@@ -1126,7 +1126,8 @@ func (s *Service) tryLoad() error {
 		}
 		interval, err := s.LoadBlockInterval(gen)
 		if err != nil {
-			return err
+			log.Errorf("Ignoring chain %x because we can't load blockInterval: %s", gen, err)
+			continue
 		}
 
 		leader, err := s.getLeader(gen)
@@ -1139,6 +1140,7 @@ func (s *Service) tryLoad() error {
 		}
 		sb, err := s.db().GetLatestByID(gen)
 		if err != nil {
+			log.Print()
 			return err
 		}
 		s.state.setLast(sb)
@@ -1146,6 +1148,7 @@ func (s *Service) tryLoad() error {
 		// populate the darcID to skipchainID mapping
 		d, err := s.LoadGenesisDarc(gen)
 		if err != nil {
+			log.Print()
 			return err
 		}
 		s.darcToScMut.Lock()
@@ -1176,7 +1179,7 @@ func (s *Service) isOurChain(gen skipchain.SkipBlockID) bool {
 func (s *Service) save() {
 	s.storage.Lock()
 	defer s.storage.Unlock()
-	err := s.Save([]byte(storageID), s.storage)
+	err := s.Save(storageID, s.storage)
 	if err != nil {
 		log.Error("Couldn't save file:", err)
 	}

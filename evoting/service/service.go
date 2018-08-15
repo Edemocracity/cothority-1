@@ -46,6 +46,7 @@ var serviceID onet.ServiceID
 
 // storageKey identifies the on-disk storage.
 var storageKey = []byte("storage")
+var dbVersion = 1
 
 // Service is the core structure of the application.
 type Service struct {
@@ -740,6 +741,7 @@ func (s *Service) save() {
 	if err := s.Save(storageKey, s.storage); err != nil {
 		log.Error(err)
 	}
+	s.SaveVersion(dbVersion)
 }
 
 // load fetches the storage from disk.
